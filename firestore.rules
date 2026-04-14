@@ -1,0 +1,76 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: analyses
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required, immutable) - The ID of the user who performed the analysis
+    //   - fileName: string (required, immutable) - The name of the analyzed file
+    //   - probability: number (required, immutable) - The probability score (0-100)
+    //   - justification: string (required, immutable) - The technical justification
+    //   - artifacts: list of strings (required, immutable) - A list of visual artifacts found
+    //   - createdAt: timestamp (required, immutable) - The time the analysis was performed
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+    
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function isValidAnalysis(data) {
+      return hasOnlyAllowedFields(['uid', 'fileName', 'probability', 'justification', 'artifacts', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+             data.fileName is string && data.fileName.size() > 0 && data.fileName.size() < 500 &&
+             data.probability is number && data.probability >= 0 && data.probability <= 100 &&
+             data.justification is string && data.justification.size() >= 0 && data.justification.size() < 5000 &&
+             data.artifacts is list && data.artifacts.size() <= 50 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /analyses/{analysisId} {
+      // Users can read their own analyses
+      allow read: if isAuthenticated() && isDocOwner();
+      
+      // Users can create an analysis for themselves
+      allow create: if isAuthenticated() && 
+                    uidUnchanged() && 
+                    hasRequiredFields(['uid', 'fileName', 'probability', 'justification', 'artifacts', 'createdAt']) &&
+                    isValidAnalysis(request.resource.data);
+                    
+      // Analyses are immutable, no updates allowed
+      allow update: if false;
+      
+      // Users can delete their own analyses
+      allow delete: if isAuthenticated() && isDocOwner();
+    }
+  }
+}

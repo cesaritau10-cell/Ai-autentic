@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "Analysis": {
+      "title": "Analysis",
+      "description": "A record of an AI image analysis.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The ID of the user who performed the analysis."
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The name of the analyzed file."
+        },
+        "probability": {
+          "type": "number",
+          "description": "The probability score (0-100) that the image is AI-generated."
+        },
+        "justification": {
+          "type": "string",
+          "description": "The technical justification for the score."
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of visual artifacts found."
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "The time the analysis was performed."
+        }
+      },
+      "required": ["uid", "fileName", "probability", "justification", "artifacts", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/analyses/{analysisId}": {
+      "schema": {
+        "$ref": "#/entities/Analysis"
+      },
+      "description": "Stores all analyses performed by users."
+    }
+  }
+}
